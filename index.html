@@ -246,6 +246,7 @@
   </div>
   <button class="lockbtn" id="unlock">Unlock</button>
   <div class="lockhint" id="lockHint"></div>
+  <div class="lockhint"><a id="forgotLink" style="color:var(--primary);cursor:pointer;text-decoration:underline">Forgot password?</a></div>
 </div>
 
 <!-- APP -->
@@ -335,6 +336,16 @@ async function decText(key, blob){
     return dec.decode(pt);
   }catch(e){ return null; }
 }
+
+/* ---------- Recovery code (stores the password, encrypted under a one-time code) ---------- */
+const RC_ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no I,O,0,1
+function genRecoveryCode(){
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let s='';
+  for(let i=0;i<16;i++){ s += RC_ALPHABET[bytes[i]%RC_ALPHABET.length]; if(i%4===3 && i<15) s+='-'; }
+  return s;                                              // e.g. ABCD-EFGH-JKLM-NPQR
+}
+function normCode(c){ return (c||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
 
 /* ---------- State ---------- */
 let DB = null;          // whole data object
@@ -466,7 +477,9 @@ const fb = {
     const blob = await encText(SKEY, JSON.stringify({ settings:data.settings, apps:data.apps }));
     suppressRemote = true;
     await this._fs.setDoc(this.docRef, {
-      salt: data.auth.salt, verifier: data.auth.verifier, blob, updatedAt: data.updatedAt
+      salt: data.auth.salt, verifier: data.auth.verifier,
+      recovery: data.auth.recovery || null,
+      blob, updatedAt: data.updatedAt
     });
     setTimeout(()=>suppressRemote=false, 500);
   },
@@ -983,6 +996,11 @@ function openSettings(){
     <div class="section">
       <h4>Security</h4>
       <button class="btn ghost" onclick="changePw()">Change password</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" onclick="setupRecovery()">${DB.auth && DB.auth.recovery? 'Replace recovery code' : 'Create recovery code'}</button>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:6px">
+        ${DB.auth && DB.auth.recovery? '✅ A recovery code is set. Create a new one to replace it.' : 'Lets you get back in if you forget your password. Store it safely.'}
+      </div>
     </div>
 
     <div class="btnrow"><button class="btn ghost" onclick="closeSheet()">Close</button></div>
@@ -1064,7 +1082,11 @@ function importBackup(ev){
 
 async function changePw(){
   const np = prompt('New password (4–12 chars):');
-  if(!np || np.length<4){ toast('Too short'); return; }
+  if(np===null) return;
+  if(np.length<4){ toast('Too short'); return; }
+  const cf = prompt('Type the new password again to confirm:');
+  if(cf===null) return;
+  if(cf!==np){ toast('Passwords do not match'); return; }
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const key = await deriveKey(np, salt);
   // re-encrypt all admin passwords with new key
@@ -1074,9 +1096,56 @@ async function changePw(){
       if(plain!==null) a.adminPassEnc = await encText(key, plain);
     }
   }
+  const hadRecovery = !!(DB.auth && DB.auth.recovery);
   SKEY = key;
-  DB.auth = { salt:b64.to(salt), verifier: await encText(key,'ok') };
-  await persist(); toast('Password changed'); closeSheet();
+  DB.auth = { salt:b64.to(salt), verifier: await encText(key,'ok'), recovery:null };
+  await persist();
+  closeSheet();
+  if(hadRecovery){ toast('Password changed — old recovery code is now invalid'); }
+  else { toast('Password changed'); }
+}
+
+/* ---------- Recovery code: create / show / use ---------- */
+function copyText(t){
+  (navigator.clipboard? navigator.clipboard.writeText(t): Promise.reject())
+    .then(()=>toast('Copied')).catch(()=>toast('Copy failed'));
+}
+function showRecoveryCode(code){
+  openSheet(`
+    <h2>Your recovery code</h2>
+    <p style="font-size:13px;color:var(--muted)">Write this down and keep it somewhere safe. If you forget your password, this code lets you get back in. It is shown only once.</p>
+    <div style="font-size:21px;font-weight:800;letter-spacing:2px;text-align:center;padding:16px;border:1px dashed var(--line);border-radius:12px;margin:14px 0">${code}</div>
+    <div class="btnrow">
+      <button class="btn" onclick="copyText('${code}')">Copy</button>
+      <button class="btn ghost" onclick="openSettings()">Done</button>
+    </div>`);
+}
+async function setupRecovery(){
+  const pw = prompt('Confirm your current password to create a recovery code:');
+  if(pw===null) return;
+  const key = await deriveKey(pw, b64.from(DB.auth.salt));
+  if(await decText(key, DB.auth.verifier) !== 'ok'){ toast('Wrong password'); return; }
+  const code = genRecoveryCode();
+  const saltRec = crypto.getRandomValues(new Uint8Array(16));
+  const recKey = await deriveKey(normCode(code), saltRec);
+  const encPw = await encText(recKey, pw);
+  snapshot();
+  DB.auth.recovery = { saltRec:b64.to(saltRec), encPw };
+  await persist();
+  showRecoveryCode(code);
+}
+async function startRecovery(){
+  const rec = (lockMode==='cloud' && remoteDoc && remoteDoc.recovery) ? remoteDoc.recovery
+            : (DB.auth && DB.auth.recovery) ? DB.auth.recovery : null;
+  if(!rec){ toast('No recovery code was set up'); return; }
+  const code = prompt('Enter your recovery code:');
+  if(code===null) return;
+  const recKey = await deriveKey(normCode(code), b64.from(rec.saltRec));
+  const pw = await decText(recKey, rec.encPw);
+  if(pw===null){ toast('Invalid recovery code'); return; }
+  $('#pw').value = pw;
+  await doUnlock();
+  if(SKEY){ toast('Logged in — please set a new password'); setTimeout(changePw, 500); }
 }
 
 /* ============================================================
@@ -1109,9 +1178,12 @@ async function boot(){
     lockMode = 'new';
     $('#lockTitle').textContent = 'Welcome';
     $('#lockSub').textContent = 'Set a password (4–12 chars)';
-    $('#lockHint').textContent = 'This password locks the app and encrypts everything saved. Remember it — it cannot be recovered.';
+    $('#lockHint').textContent = 'This password locks the app and encrypts everything saved.';
     $('#unlock').textContent = 'Create';
   }
+  // show "Forgot password?" only when a recovery code could exist
+  const canRecover = (lockMode==='cloud' && remoteDoc && remoteDoc.recovery) || (lockMode==='local' && DB.auth && DB.auth.recovery);
+  $('#forgotLink').style.display = canRecover? 'inline' : 'none';
 }
 async function doUnlock(){
   const pw = $('#pw').value;
@@ -1124,7 +1196,7 @@ async function doUnlock(){
     const s = JSON.parse(await decText(key, remoteDoc.blob));
     DB = {
       version:1,
-      auth:{ salt:remoteDoc.salt, verifier:remoteDoc.verifier },
+      auth:{ salt:remoteDoc.salt, verifier:remoteDoc.verifier, recovery:remoteDoc.recovery||null },
       settings: s.settings || blankDB().settings,
       firebase:{ enabled:true, config: FIREBASE_CONFIG || (DB.firebase&&DB.firebase.config) || null },
       apps: s.apps || [],
@@ -1145,10 +1217,43 @@ async function doUnlock(){
   if(await decText(key, DB.auth.verifier)==='ok'){ SKEY = key; enterApp(); }
   else { toast('Wrong password'); $('#pw').value=''; }
 }
+/* ---------- Auto-lock after inactivity ---------- */
+const IDLE_MS = 120000;            // 2 minutes
+let idleTimer = null, lastActive = Date.now();
+function resetIdle(){
+  if(!SKEY) return;
+  lastActive = Date.now();
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(lockNow, IDLE_MS);
+}
+function lockNow(){
+  if(!SKEY) return;
+  SKEY = null;
+  clearTimeout(idleTimer);
+  closeSheet();
+  $('#app').classList.add('hidden');
+  lockMode = DB.auth ? 'local' : 'new';
+  $('#lockTitle').textContent = 'Apps Manager';
+  $('#lockSub').textContent = 'Locked — enter your password';
+  $('#lockHint').textContent = '';
+  $('#unlock').textContent = 'Unlock';
+  $('#pw').value = '';
+  $('#forgotLink').style.display = (DB.auth && DB.auth.recovery)? 'inline' : 'none';
+  $('#lock').classList.remove('hidden');
+  try{ $('#pw').focus(); }catch(e){}
+}
+['click','keydown','touchstart','pointerdown','scroll'].forEach(ev=>
+  document.addEventListener(ev, resetIdle, {passive:true}));
+document.addEventListener('visibilitychange', ()=>{
+  if(!SKEY) return;
+  if(document.visibilityState==='visible' && Date.now()-lastActive >= IDLE_MS) lockNow();
+  else resetIdle();
+});
+
 async function enterApp(){
   $('#lock').classList.add('hidden');
   $('#app').classList.remove('hidden');
-  render(); refreshUndo(); syncControls();
+  render(); refreshUndo(); syncControls(); resetIdle();
   const cfg = effectiveConfig();
   if(!cfg) return;
   if(remoteState==='error'){ DB.firebase.enabled=false; toast('Cloud not reachable — working offline'); return; }
@@ -1162,6 +1267,7 @@ async function enterApp(){
 
 /* ---------- wire up ---------- */
 $('#unlock').onclick = doUnlock;
+$('#forgotLink').onclick = startRecovery;
 $('#pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doUnlock(); });
 $('#addBtn').onclick = openAdd;
 $('#settingsBtn').onclick = openSettings;
@@ -1180,7 +1286,8 @@ Object.assign(window, {closeSheet,openDetail,openEdit,saveApp,bump,delApp,reveal
   addFile,saveFile,viewFile,delFile,shareApp,shareText,shareFile,setTheme,setMode,setFont,
   saveFirebase,disableFirebase,exportBackup,importBackup,changePw,openSettings,
   toggleTagFilter,setCatFilter,clearFilters,toggleGroup,
-  addCategory,delCategory,addPricing,editPricing,delPricing});
+  addCategory,delCategory,addPricing,editPricing,delPricing,
+  setupRecovery,startRecovery,showRecoveryCode,copyText});
 
 boot();
 
