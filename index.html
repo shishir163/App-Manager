@@ -747,9 +747,9 @@ function openDetail(id){
   const st = STATUS[a.status]||STATUS.idea;
   const link = (u,t)=> u? `<a href="${escapeHtml(u)}" target="_blank" rel="noopener">${t}</a>` : '—';
   const files = (a.files||[]).map(f=>`
-    <div class="f"><span class="nm">📄 ${escapeHtml(f.name)}</span>
+    <div class="f"><span class="nm">${fileKindIcon(f)} ${escapeHtml(f.name)}</span>
       <span><button class="mini" onclick="viewFile('${a.id}','${f.id}')">View</button>
-      <button class="mini" onclick="delFile('${a.id}','${f.id}')">✕</button></span></div>`).join('') || '<div style="color:var(--muted);font-size:13px">No rule files yet.</div>';
+      <button class="mini" onclick="delFile('${a.id}','${f.id}')">✕</button></span></div>`).join('') || '<div style="color:var(--muted);font-size:13px">No rules / documents yet.</div>';
 
   openSheet(`
     <h2>${escapeHtml(a.name||'Untitled')}</h2>
@@ -799,9 +799,9 @@ function openDetail(id){
     </div>
 
     <div class="section">
-      <h4>Rule files</h4>
+      <h4>Rules &amp; documents</h4>
       <div class="filelist">${files}</div>
-      <button class="mini" style="margin-top:8px" onclick="addFile('${a.id}')">＋ Add rule file</button>
+      <button class="mini" style="margin-top:8px" onclick="addFile('${a.id}')">＋ Add rule / document</button>
     </div>
 
     <div class="btnrow">
@@ -839,44 +839,98 @@ function delApp(id){
   persist(); render(); closeSheet(); toast('Deleted');
 }
 
-/* ---------- Rule files ---------- */
+/* ---------- Rule files (text / link / small file) ---------- */
+const FILE_MAX = 400*1024;   // 400 KB cap for embedded files (keeps cloud sync under Firestore's limit)
+function fileKindIcon(f){ return f.type==='link'? '🔗' : f.type==='file'? '📎' : '📄'; }
+
 function addFile(appId){
   openSheet(`
-    <h2>Add rule file</h2>
-    <div class="row"><label>File name</label><input id="ff_name" placeholder="e.g. Refund rules"></div>
-    <div class="row"><label>Content</label><textarea id="ff_body" style="min-height:160px" placeholder="paste the rules / text here"></textarea></div>
+    <h2>Add rule / document</h2>
+    <div class="row"><label>Type</label>
+      <select id="ff_type" onchange="ffType('${appId}')">
+        <option value="text">Text (type or paste)</option>
+        <option value="link">Link (Google Drive / URL)</option>
+        <option value="file">Attach file (under 400 KB)</option>
+      </select>
+    </div>
+    <div class="row"><label>Name</label><input id="ff_name" placeholder="e.g. Refund rules"></div>
+    <div id="ff_dyn">
+      <div class="row"><label>Content</label><textarea id="ff_body" style="min-height:150px" placeholder="paste the rules / text here"></textarea></div>
+    </div>
     <div class="btnrow">
       <button class="btn ghost" onclick="openDetail('${appId}')">Back</button>
-      <button class="btn" onclick="saveFile('${appId}')">Save file</button>
+      <button class="btn" onclick="saveFile('${appId}')">Save</button>
     </div>`);
+}
+function ffType(appId){
+  const t=$('#ff_type').value, dyn=$('#ff_dyn');
+  if(t==='text') dyn.innerHTML = `<div class="row"><label>Content</label><textarea id="ff_body" style="min-height:150px" placeholder="paste the rules / text here"></textarea></div>`;
+  else if(t==='link') dyn.innerHTML = `<div class="row"><label>Link (URL)</label><input id="ff_url" placeholder="https://drive.google.com/..."></div>`;
+  else dyn.innerHTML = `<div class="row"><label>Choose file (PDF, doc, image… under 400 KB)</label><input id="ff_file" type="file"></div><div style="font-size:11.5px;color:var(--muted)">Bigger files won't sync — use a link instead for those.</div>`;
 }
 function saveFile(appId){
   const a = DB.apps.find(x=>x.id===appId);
-  const name = $('#ff_name').value.trim(), body = $('#ff_body').value;
+  const name = $('#ff_name').value.trim();
+  const type = $('#ff_type').value;
   if(!name){ toast('Name needed'); return; }
-  snapshot();
   a.files = a.files||[];
-  a.files.push({id:uid(), name, body, date:todayISO()});
-  persist(); openDetail(appId); toast('File added');
+
+  if(type==='text'){
+    snapshot();
+    a.files.push({id:uid(), type:'text', name, body:$('#ff_body').value, date:todayISO()});
+    persist(); openDetail(appId); toast('Saved');
+  } else if(type==='link'){
+    let url=$('#ff_url').value.trim();
+    if(!url){ toast('Enter a link'); return; }
+    if(!/^https?:\/\//i.test(url)) url='https://'+url;
+    snapshot();
+    a.files.push({id:uid(), type:'link', name, url, date:todayISO()});
+    persist(); openDetail(appId); toast('Link added');
+  } else {
+    const f=$('#ff_file').files[0];
+    if(!f){ toast('Choose a file'); return; }
+    if(f.size>FILE_MAX){ toast('Too big ('+Math.round(f.size/1024)+' KB). Max 400 KB — use a link.'); return; }
+    const r=new FileReader();
+    r.onload=()=>{
+      snapshot();
+      a.files.push({id:uid(), type:'file', name, fname:f.name, mime:f.type||'application/octet-stream',
+        size:f.size, data:r.result, date:todayISO()});
+      persist(); openDetail(appId); toast('File attached');
+    };
+    r.onerror=()=>toast('Could not read file');
+    r.readAsDataURL(f);   // data: URL (base64)
+  }
 }
 function viewFile(appId, fid){
   const a = DB.apps.find(x=>x.id===appId); const f=a.files.find(x=>x.id===fid);
+  let inner='';
+  if(f.type==='link'){
+    inner = `<a class="btn" href="${escapeHtml(f.url)}" target="_blank" rel="noopener">Open link ↗</a>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px;word-break:break-all">${escapeHtml(f.url)}</div>`;
+  } else if(f.type==='file'){
+    const kb=Math.round((f.size||0)/1024);
+    inner = `<a class="btn" href="${f.data}" download="${escapeHtml(f.fname||f.name)}">Download / open ↗</a>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px">${escapeHtml(f.fname||'')} · ${kb} KB</div>`;
+  } else {
+    inner = `<div style="white-space:pre-wrap;font-size:14px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">${escapeHtml(f.body||'')}</div>`;
+  }
   openSheet(`
-    <h2>${escapeHtml(f.name)}</h2>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Added ${f.date}</div>
-    <div style="white-space:pre-wrap;font-size:14px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">${escapeHtml(f.body||'')}</div>
+    <h2>${fileKindIcon(f)} ${escapeHtml(f.name)}</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Added ${f.date||''}</div>
+    ${inner}
     <div class="btnrow" style="margin-top:12px">
       <button class="btn ghost" onclick="openDetail('${appId}')">Back</button>
-      <button class="btn" onclick="shareFile('${appId}','${fid}')">Share</button>
+      ${f.type==='file'? '' : `<button class="btn" onclick="shareFile('${appId}','${fid}')">Share</button>`}
     </div>`);
 }
 function shareFile(appId, fid){
   const a = DB.apps.find(x=>x.id===appId); const f=a.files.find(x=>x.id===fid);
-  shareText(f.name, f.body||'');
+  if(f.type==='link') shareText(f.name, f.url);
+  else shareText(f.name, f.body||'');
 }
 function delFile(appId, fid){
   const a = DB.apps.find(x=>x.id===appId);
-  if(!confirm('Delete this file?')) return;
+  if(!confirm('Delete this entry?')) return;
   snapshot(); a.files = a.files.filter(x=>x.id!==fid);
   persist(); openDetail(appId);
 }
@@ -1283,7 +1337,7 @@ $('#searchBox').addEventListener('input', e=>{ clearTimeout(searchT); const v=e.
 
 // expose for inline onclick handlers
 Object.assign(window, {closeSheet,openDetail,openEdit,saveApp,bump,delApp,revealPass,
-  addFile,saveFile,viewFile,delFile,shareApp,shareText,shareFile,setTheme,setMode,setFont,
+  addFile,ffType,saveFile,viewFile,delFile,shareApp,shareText,shareFile,setTheme,setMode,setFont,
   saveFirebase,disableFirebase,exportBackup,importBackup,changePw,openSettings,
   toggleTagFilter,setCatFilter,clearFilters,toggleGroup,
   addCategory,delCategory,addPricing,editPricing,delPricing,
