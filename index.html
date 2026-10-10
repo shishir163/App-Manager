@@ -97,25 +97,57 @@
   .stat:nth-child(3){ background:#e7ddf6; }
 
   /* ---------- App cards ---------- */
-  /* toolbar: sort + size */
-  .toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-  .tbsel{ flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:11px;
+  /* search bar */
+  .toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .searchwrap{ flex:1; display:flex; align-items:center; gap:8px; background:var(--bg2);
+    border:1px solid var(--line); border-radius:12px; padding:0 12px; }
+  .searchwrap .sicon{ color:var(--muted); font-size:17px; }
+  .searchwrap input{ flex:1; border:none; background:transparent; color:var(--fg);
+    font-size:15px; padding:11px 0; outline:none; }
+  /* toolbar2: sort + category + group + size */
+  .toolbar2{ display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .tbsel{ flex:1; min-width:120px; padding:9px 10px; border:1px solid var(--line); border-radius:11px;
     background:var(--bg2); color:var(--fg); font-size:13px; }
+  .iconbtn2{ width:40px; height:38px; border:1px solid var(--line); border-radius:11px;
+    background:var(--bg2); color:var(--fg); font-size:16px; }
+  .iconbtn2.on{ background:var(--primary); color:var(--primary-ink); border-color:transparent; }
   .sizes{ display:flex; gap:3px; background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:3px; }
-  .sizes button{ width:34px; height:30px; border:none; border-radius:8px; background:transparent; color:var(--muted); font-size:13px; font-weight:700; }
+  .sizes button{ min-width:30px; height:30px; padding:0 6px; border:none; border-radius:8px; background:transparent; color:var(--muted); font-size:12px; font-weight:700; }
   .sizes button.on{ background:var(--primary); color:var(--primary-ink); }
+  /* active filter chips */
+  .filterbar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .fchip{ font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px;
+    background:var(--primary); color:var(--primary-ink); }
+  .grouphead{ font-size:13px; font-weight:800; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.5px; margin:6px 2px 0; }
 
   .grid{ display:grid; gap:12px; }
+  .grid.sz-xs{ grid-template-columns:1fr 1fr 1fr; gap:8px; }
   .grid.sz-s{ grid-template-columns:1fr 1fr; gap:10px; }
   .grid.sz-m{ grid-template-columns:1fr 1fr; }
   .grid.sz-l{ grid-template-columns:1fr; }
+  @media(min-width:560px){ .grid.sz-xs{ grid-template-columns:repeat(4,1fr); } }
+  .grid.sz-xs .card{ padding:9px; border-radius:14px; }
+  .grid.sz-xs .card h3{ font-size:12.5px; }
+  .grid.sz-xs .card .desc, .grid.sz-xs .card .meta, .grid.sz-xs .card .tags, .grid.sz-xs .card .goarrow, .grid.sz-xs .card .trend{ display:none; }
+  .grid.sz-xs .card .foot{ margin-top:8px; }
+  .grid.sz-xs .card .users b{ font-size:14px; }
   .grid.sz-s .card{ padding:11px; }
   .grid.sz-s .card h3{ font-size:14px; }
-  .grid.sz-s .card .desc{ display:none; }
+  .grid.sz-s .card .desc, .grid.sz-s .card .tags{ display:none; }
   .grid.sz-s .card .users b{ font-size:15px; }
   .grid.sz-l .card{ padding:20px; }
   .grid.sz-l .card h3{ font-size:19px; }
   .grid.sz-l .card .users b{ font-size:19px; }
+  /* tags on card */
+  .card .tags{ display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+  .tagchip{ font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:999px;
+    background:rgba(255,255,255,.6); color:#1f2430; }
+  /* settings manage lists */
+  .manage .mrow{ display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:8px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:6px; background:var(--bg2); font-size:14px; }
+  .addrow{ display:flex; gap:8px; margin-top:8px; }
+  .addrow input{ flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:var(--bg2); color:var(--fg); font-size:14px; }
   .card{ border:none; border-radius:20px; padding:16px; box-shadow:var(--shadow);
     position:relative; overflow:hidden; color:#1f2430; }
   .card h3{ margin:0 0 4px; font-size:16px; font-weight:700; }
@@ -233,18 +265,28 @@
       <div class="stat"><div class="k">Revenue</div><div class="v" id="sRev">0</div></div>
     </div>
     <div class="toolbar hidden" id="toolbar">
+      <div class="searchwrap">
+        <span class="sicon">⌕</span>
+        <input id="searchBox" type="search" placeholder="Search apps, tags, notes…" autocomplete="off">
+      </div>
+    </div>
+    <div class="toolbar2 hidden" id="toolbar2">
       <select id="sortSel" class="tbsel">
         <option value="az">Sort: A → Z</option>
         <option value="za">Sort: Z → A</option>
         <option value="users">Sort: Users (high→low)</option>
         <option value="status">Sort: Status</option>
       </select>
+      <select id="catSel" class="tbsel"></select>
+      <button class="iconbtn2" id="groupBtn" title="Group by category">▦</button>
       <div class="sizes" id="sizes">
+        <button data-sz="xs">XS</button>
         <button data-sz="s">S</button>
         <button data-sz="m">M</button>
         <button data-sz="l">L</button>
       </div>
     </div>
+    <div class="filterbar hidden" id="filterbar"></div>
     <div class="grid sz-m" id="grid"></div>
     <div class="empty hidden" id="empty">
       <div class="big">▦</div>
@@ -321,7 +363,14 @@ function blankDB(){
   return {
     version:1,
     auth:null,                               // {salt, verifier}
-    settings:{ theme:'ocean', mode:'light', font:'lato', sort:'az', size:'m' },
+    settings:{ theme:'ocean', mode:'light', font:'lato', sort:'az', size:'m',
+      query:'', filterTag:'', filterCat:'', groupByCat:false,
+      categories:['ICU','Business','Personal'],
+      pricingOptions:[
+        {id:'free', label:'Free'},
+        {id:'onetime', label:'One-time'},
+        {id:'subscription', label:'Subscription'}
+      ] },
     firebase:{ enabled:false, config:null },
     apps:[],
     updatedAt: Date.now()
@@ -447,7 +496,12 @@ const STATUS = {
   idea:{label:'Idea', cls:'n'}, building:{label:'Building', cls:'w'},
   live:{label:'Live', cls:'g'}, paused:{label:'Paused', cls:'r'}
 };
-const PRICING = { free:'Free', onetime:'One-time', subscription:'Subscription' };
+// pricing options now live in DB.settings.pricingOptions (user-editable)
+function pricingList(){ return (DB.settings.pricingOptions)||[]; }
+function pricingLabel(id){ const o=pricingList().find(p=>p.id===id); return o? o.label : '—'; }
+// treat an option as "free" (no revenue) if its id or label says so
+function isFreePricing(id){ const o=pricingList().find(p=>p.id===id); if(!o) return false; return /free|ফ্রি/i.test(o.id+' '+o.label); }
+const CATS_NONE = '—';
 
 function appTrend(a){
   const h = a.userHistory||[];
@@ -458,7 +512,7 @@ function appTrend(a){
   return {dir:'flat', txt:'—'};
 }
 function appRevenue(a){
-  if(a.pricing==='free') return 0;
+  if(isFreePricing(a.pricing)) return 0;
   const paid = Number(a.paidUsers ?? a.users ?? 0);
   return paid * (Number(a.price)||0);
 }
@@ -475,39 +529,116 @@ function sortApps(apps){
 function syncControls(){
   const ss=$('#sortSel'); if(ss) ss.value = DB.settings.sort||'az';
   $$('#sizes button').forEach(b=>b.classList.toggle('on', b.dataset.sz===(DB.settings.size||'m')));
+  const q=$('#searchBox'); if(q && q.value!==(DB.settings.query||'')) q.value = DB.settings.query||'';
+  const gb=$('#groupBtn'); if(gb) gb.classList.toggle('on', !!DB.settings.groupByCat);
+}
+function allTags(){
+  const s=new Set(); DB.apps.forEach(a=>(a.tags||[]).forEach(t=>s.add(t)));
+  return [...s].sort((x,y)=>x.localeCompare(y));
+}
+function filterApps(apps){
+  const q=(DB.settings.query||'').trim().toLowerCase();
+  const ft=DB.settings.filterTag||'', fc=DB.settings.filterCat||'';
+  return apps.filter(a=>{
+    if(ft && !(a.tags||[]).includes(ft)) return false;
+    if(fc && (a.category||'')!==fc) return false;
+    if(q){
+      const hay=[a.name,a.desc,a.notes,a.host,a.category,(a.tags||[]).join(' ')].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function cardHTML(a,i){
+  const st = STATUS[a.status]||STATUS.idea;
+  const tr = appTrend(a);
+  const tags=(a.tags||[]).map(t=>`<span class="tagchip" onclick="event.stopPropagation();toggleTagFilter('${escapeHtml(t)}')">#${escapeHtml(t)}</span>`).join('');
+  return `<div class="card c${i%8}" onclick="openDetail('${a.id}')">
+      <h3>${escapeHtml(a.name||'Untitled')}</h3>
+      <div class="desc">${escapeHtml(a.desc||'')}</div>
+      <div class="meta">
+        <span class="chip ${st.cls}">${st.label}</span>
+        <span class="chip soft">${escapeHtml(pricingLabel(a.pricing))}</span>
+        ${a.category? `<span class="chip soft">${escapeHtml(a.category)}</span>`:''}
+      </div>
+      ${tags? `<div class="tags">${tags}</div>`:''}
+      <div class="foot">
+        <span class="users">Users <b>${money(a.users||0)}</b><span class="trend ${tr.dir}">${tr.txt}</span></span>
+        <span class="goarrow">↗</span>
+      </div>
+    </div>`;
+}
+function ensureSettings(){
+  const s = DB.settings = DB.settings || {};
+  if(!('query' in s)) s.query='';
+  if(!('filterTag' in s)) s.filterTag='';
+  if(!('filterCat' in s)) s.filterCat='';
+  if(!('groupByCat' in s)) s.groupByCat=false;
+  if(!Array.isArray(s.categories)) s.categories=['ICU','Business','Personal'];
+  if(!Array.isArray(s.pricingOptions)||!s.pricingOptions.length){
+    s.pricingOptions=[{id:'free',label:'Free'},{id:'onetime',label:'One-time'},{id:'subscription',label:'Subscription'}];
+  }
+  if(!s.size) s.size='m';
+  if(!s.sort) s.sort='az';
 }
 function render(){
+  ensureSettings();
   const apps = DB.apps;
   $('#sApps').textContent = apps.length;
   $('#sUsers').textContent = money(apps.reduce((s,a)=>s+(Number(a.users)||0),0));
   $('#sRev').textContent = money(apps.reduce((s,a)=>s+appRevenue(a),0));
 
+  $('#toolbar').classList.toggle('hidden', apps.length===0);
+  $('#toolbar2').classList.toggle('hidden', apps.length===0);
+  renderCatSelect();
+  renderFilterBar();
+
+  const list = sortApps(filterApps(apps));
   const grid = $('#grid'); grid.innerHTML='';
   grid.className = 'grid sz-'+(DB.settings.size||'m');
-  $('#empty').classList.toggle('hidden', apps.length>0);
-  $('#toolbar').classList.toggle('hidden', apps.length===0);
 
-  sortApps(apps).forEach((a,i)=>{
-    const st = STATUS[a.status]||STATUS.idea;
-    const tr = appTrend(a);
-    const el = document.createElement('div');
-    el.className='card c'+(i%8);
-    el.innerHTML = `
-      <h3>${escapeHtml(a.name||'Untitled')}</h3>
-      <div class="desc">${escapeHtml(a.desc||'')}</div>
-      <div class="meta">
-        <span class="chip ${st.cls}">${st.label}</span>
-        <span class="chip soft">${PRICING[a.pricing]||'—'}</span>
-        ${a.freeCount? `<span class="chip soft">Free: ${a.freeCount}</span>`:''}
-      </div>
-      <div class="foot">
-        <span class="users">Users <b>${money(a.users||0)}</b><span class="trend ${tr.dir}">${tr.txt}</span></span>
-        <span class="goarrow">↗</span>
-      </div>`;
-    el.onclick = ()=>openDetail(a.id);
-    grid.appendChild(el);
-  });
+  $('#empty').classList.toggle('hidden', apps.length>0);
+  if(apps.length && !list.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">No apps match.<br><button class="mini" onclick="clearFilters()">Clear filters</button></div>`;
+    return;
+  }
+
+  if(DB.settings.groupByCat){
+    // group by category
+    const groups={};
+    list.forEach(a=>{ const c=a.category||'Uncategorized'; (groups[c]=groups[c]||[]).push(a); });
+    Object.keys(groups).sort((x,y)=>x.localeCompare(y)).forEach(cat=>{
+      const head=document.createElement('div'); head.className='grouphead'; head.style.gridColumn='1/-1';
+      head.textContent = cat+' ('+groups[cat].length+')';
+      grid.appendChild(head);
+      groups[cat].forEach((a,i)=> grid.insertAdjacentHTML('beforeend', cardHTML(a,i)));
+    });
+  } else {
+    list.forEach((a,i)=> grid.insertAdjacentHTML('beforeend', cardHTML(a,i)));
+  }
 }
+function renderCatSelect(){
+  const sel=$('#catSel'); if(!sel) return;
+  const cats=DB.settings.categories||[];
+  sel.innerHTML = `<option value="">All categories</option>`+
+    cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = DB.settings.filterCat||'';
+}
+function renderFilterBar(){
+  const bar=$('#filterbar'); if(!bar) return;
+  const tags=allTags();
+  const chips=[];
+  if(DB.settings.filterCat) chips.push(`<span class="fchip on" onclick="setCatFilter('')">▣ ${escapeHtml(DB.settings.filterCat)} ✕</span>`);
+  if(DB.settings.filterTag) chips.push(`<span class="fchip on" onclick="toggleTagFilter('${escapeHtml(DB.settings.filterTag)}')">#${escapeHtml(DB.settings.filterTag)} ✕</span>`);
+  bar.innerHTML = chips.join('');
+  bar.classList.toggle('hidden', chips.length===0);
+}
+// filter/search are per-view — save locally only, don't sync to cloud
+function doSearch(v){ DB.settings.query=v; saveLocal(); render(); }
+function toggleTagFilter(t){ DB.settings.filterTag = (DB.settings.filterTag===t? '' : t); saveLocal(); render(); }
+function setCatFilter(c){ DB.settings.filterCat=c; saveLocal(); render(); }
+function clearFilters(){ DB.settings.query=''; DB.settings.filterTag=''; DB.settings.filterCat=''; saveLocal(); render(); syncControls(); }
+function toggleGroup(){ DB.settings.groupByCat=!DB.settings.groupByCat; saveLocal(); render(); syncControls(); }
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ---------- Modal helpers ---------- */
@@ -540,8 +671,14 @@ function appForm(a){
         <select id="f_status">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${e.status===k?'selected':''}>${v.label}</option>`).join('')}</select>
       </div>
       <div class="row"><label>Pricing</label>
-        <select id="f_pricing">${Object.entries(PRICING).map(([k,v])=>`<option value="${k}" ${e.pricing===k?'selected':''}>${v}</option>`).join('')}</select>
+        <select id="f_pricing">${pricingList().map(p=>`<option value="${escapeHtml(p.id)}" ${e.pricing===p.id?'selected':''}>${escapeHtml(p.label)}</option>`).join('')}</select>
       </div>
+    </div>
+    <div class="two">
+      <div class="row"><label>Category</label>
+        <select id="f_cat"><option value="">— none —</option>${(DB.settings.categories||[]).map(c=>`<option value="${escapeHtml(c)}" ${e.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select>
+      </div>
+      <div class="row"><label>Tags (comma separated)</label><input id="f_tags" value="${escapeHtml((e.tags||[]).join(', '))}" placeholder="e.g. medical, pwa"></div>
     </div>
     <div class="two">
       <div class="row"><label>Users (current)</label><input id="f_users" type="number" value="${e.users??0}"></div>
@@ -571,6 +708,8 @@ async function saveApp(id){
     name:g('f_name'), desc:g('f_desc'), liveUrl:g('f_live'), repoUrl:g('f_repo'),
     host:g('f_host'), adminEmail:g('f_mail'),
     status:g('f_status'), pricing:g('f_pricing'),
+    category:g('f_cat'),
+    tags: g('f_tags').split(',').map(t=>t.trim()).filter(Boolean),
     users:Number(g('f_users'))||0, price:Number(g('f_price'))||0,
     paidUsers: g('f_paid')==='' ? undefined : Number(g('f_paid')),
     freeCount: g('f_free')==='' ? undefined : Number(g('f_free')),
@@ -635,7 +774,7 @@ function openDetail(id){
 
     <div class="section">
       <h4>Business</h4>
-      <div class="kv"><span class="k">Model</span><span class="v">${PRICING[a.pricing]||'—'}</span></div>
+      <div class="kv"><span class="k">Model</span><span class="v">${pricingLabel(a.pricing)}</span></div>
       <div class="kv"><span class="k">Price / user</span><span class="v">${money(a.price||0)}</span></div>
       <div class="kv"><span class="k">Paying users</span><span class="v">${a.paidUsers??'—'}</span></div>
       <div class="kv"><span class="k">Revenue</span><span class="v">${money(appRevenue(a))}</span></div>
@@ -751,7 +890,7 @@ function shareApp(id){
     a.liveUrl?`Live: ${a.liveUrl}`:'',
     a.repoUrl?`Repo: ${a.repoUrl}`:'',
     `Users: ${a.users||0}`,
-    `Model: ${PRICING[a.pricing]||'—'}`,
+    `Model: ${pricingLabel(a.pricing)}`,
     `Revenue: ${money(appRevenue(a))}`
   ].filter(Boolean).join('\n');
   shareText(a.name, t);
@@ -794,6 +933,31 @@ function openSettings(){
     </div>
 
     <div class="section">
+      <h4>Categories</h4>
+      <div class="manage">
+        ${(s.categories||[]).map(c=>`<div class="mrow"><span>${escapeHtml(c)}</span><button class="mini" onclick="delCategory('${escapeHtml(c)}')">✕</button></div>`).join('') || '<div style="color:var(--muted);font-size:13px">No categories yet.</div>'}
+      </div>
+      <div class="addrow">
+        <input id="newCat" placeholder="New category">
+        <button class="mini" onclick="addCategory()">Add</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Pricing options</h4>
+      <div class="manage">
+        ${pricingList().map(p=>`<div class="mrow"><span>${escapeHtml(p.label)}</span>
+          <span><button class="mini" onclick="editPricing('${escapeHtml(p.id)}')">Edit</button>
+          <button class="mini" onclick="delPricing('${escapeHtml(p.id)}')">✕</button></span></div>`).join('')}
+      </div>
+      <div class="addrow">
+        <input id="newPricing" placeholder="New pricing option">
+        <button class="mini" onclick="addPricing()">Add</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:6px">An option named "Free" counts as no revenue.</div>
+    </div>
+
+    <div class="section">
       <h4>Cloud sync (Firebase)</h4>
       <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
         ${DB.firebase.enabled? '✅ On — syncing across devices.' : 'Off — data stays on this device only.'}
@@ -823,6 +987,43 @@ function openSettings(){
 
     <div class="btnrow"><button class="btn ghost" onclick="closeSheet()">Close</button></div>
   `);
+}
+/* ---------- Categories (add/delete) ---------- */
+function addCategory(){
+  const v=$('#newCat').value.trim(); if(!v){ toast('Type a name'); return; }
+  DB.settings.categories = DB.settings.categories||[];
+  if(DB.settings.categories.includes(v)){ toast('Already exists'); return; }
+  snapshot(); DB.settings.categories.push(v); persist(); openSettings();
+}
+function delCategory(c){
+  if(!confirm(`Remove category "${c}"? Apps keep their data; they just become uncategorised.`)) return;
+  snapshot();
+  DB.settings.categories = (DB.settings.categories||[]).filter(x=>x!==c);
+  DB.apps.forEach(a=>{ if(a.category===c) a.category=''; });
+  if(DB.settings.filterCat===c) DB.settings.filterCat='';
+  persist(); render(); openSettings();
+}
+/* ---------- Pricing options (add/edit/delete) ---------- */
+function slugify(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || ('p'+Date.now().toString(36)); }
+function addPricing(){
+  const label=$('#newPricing').value.trim(); if(!label){ toast('Type a name'); return; }
+  let id=slugify(label), base=id, n=2;
+  while(pricingList().some(p=>p.id===id)){ id=base+'-'+(n++); }
+  snapshot(); DB.settings.pricingOptions.push({id,label}); persist(); openSettings();
+}
+function editPricing(id){
+  const o=pricingList().find(p=>p.id===id); if(!o) return;
+  const nv=prompt('Rename pricing option:', o.label);
+  if(nv===null) return;
+  const label=nv.trim(); if(!label){ toast('Name needed'); return; }
+  snapshot(); o.label=label; persist(); render(); openSettings();
+}
+function delPricing(id){
+  if(pricingList().length<=1){ toast('Keep at least one'); return; }
+  const inUse = DB.apps.filter(a=>a.pricing===id).length;
+  if(!confirm(`Delete this pricing option?${inUse? ' '+inUse+' app(s) use it and will show "—".':''}`)) return;
+  snapshot(); DB.settings.pricingOptions = pricingList().filter(p=>p.id!==id);
+  persist(); render(); openSettings();
 }
 function setTheme(t){ snapshot(); DB.settings.theme=t; applyTheme(); persist(); openSettings(); }
 function setMode(m){ snapshot(); DB.settings.mode=m; applyTheme(); persist(); openSettings(); }
@@ -968,12 +1169,18 @@ $('#shareAll').onclick = shareAll;
 $('#undoBtn').onclick = undo;
 $('#redoBtn').onclick = redo;
 $('#sortSel').onchange = e=>{ DB.settings.sort = e.target.value; persist(); render(); };
+$('#catSel').onchange = e=>{ setCatFilter(e.target.value); };
+$('#groupBtn').onclick = toggleGroup;
 $$('#sizes button').forEach(b=> b.onclick = ()=>{ DB.settings.size = b.dataset.sz; persist(); render(); syncControls(); });
+let searchT;
+$('#searchBox').addEventListener('input', e=>{ clearTimeout(searchT); const v=e.target.value; searchT=setTimeout(()=>doSearch(v),150); });
 
 // expose for inline onclick handlers
 Object.assign(window, {closeSheet,openDetail,openEdit,saveApp,bump,delApp,revealPass,
   addFile,saveFile,viewFile,delFile,shareApp,shareText,shareFile,setTheme,setMode,setFont,
-  saveFirebase,disableFirebase,exportBackup,importBackup,changePw,openSettings});
+  saveFirebase,disableFirebase,exportBackup,importBackup,changePw,openSettings,
+  toggleTagFilter,setCatFilter,clearFilters,toggleGroup,
+  addCategory,delCategory,addPricing,editPricing,delPricing});
 
 boot();
 
