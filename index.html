@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<link rel="manifest" href="manifest.json" />
+<title>Apps Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Poppins:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ---------- Theme tokens ---------- */
+  :root{
+    --radius:16px;
+    --font:'Lato',system-ui,sans-serif;
+    --fw:400;
+    --bg:#f1f5f9; --bg2:#ffffff; --fg:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --primary:#2563eb; --primary-ink:#ffffff;
+    --chip:#e0edff; --chip-ink:#1d4ed8;
+    --good:#16a34a; --warn:#d97706; --bad:#dc2626;
+    --shadow:0 6px 20px rgba(15,23,42,.08);
+  }
+  /* Color themes */
+  [data-theme="ocean"]{ --primary:#2563eb; --chip:#dbeafe; --chip-ink:#1d4ed8; }
+  [data-theme="sunset"]{ --primary:#ea580c; --chip:#ffedd5; --chip-ink:#c2410c; }
+  [data-theme="forest"]{ --primary:#059669; --chip:#d1fae5; --chip-ink:#047857; }
+  [data-theme="grape"]{ --primary:#7c3aed; --chip:#ede9fe; --chip-ink:#6d28d9; }
+  [data-theme="rose"]{ --primary:#e11d48; --chip:#ffe4e6; --chip-ink:#be123c; }
+  [data-theme="slate"]{ --primary:#0ea5e9; --chip:#e0f2fe; --chip-ink:#0369a1; }
+
+  /* Dark (night) mode */
+  [data-mode="dark"]{
+    --bg:#0b1220; --bg2:#141c2e; --fg:#e8eefc; --muted:#94a3b8;
+    --line:#243049; --primary-ink:#ffffff; --shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  [data-mode="dark"][data-theme="ocean"]{ --chip:#13294d; --chip-ink:#93c5fd; }
+  [data-mode="dark"][data-theme="sunset"]{ --chip:#3a2010; --chip-ink:#fdba74; }
+  [data-mode="dark"][data-theme="forest"]{ --chip:#0c2e23; --chip-ink:#6ee7b7; }
+  [data-mode="dark"][data-theme="grape"]{ --chip:#241244; --chip-ink:#c4b5fd; }
+  [data-mode="dark"][data-theme="rose"]{ --chip:#3b0d1c; --chip-ink:#fda4af; }
+  [data-mode="dark"][data-theme="slate"]{ --chip:#0a2b3d; --chip-ink:#7dd3fc; }
+
+  /* Fonts */
+  [data-font="lato"]{ --font:'Lato',sans-serif; --fw:400; }
+  [data-font="lato-bold"]{ --font:'Lato',sans-serif; --fw:700; }
+  [data-font="roboto"]{ --font:'Roboto',sans-serif; --fw:400; }
+  [data-font="poppins"]{ --font:'Poppins',sans-serif; --fw:400; }
+  [data-font="poppins-bold"]{ --font:'Poppins',sans-serif; --fw:600; }
+  [data-font="serif"]{ --font:Georgia,'Times New Roman',serif; --fw:400; }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:var(--font); font-weight:var(--fw);
+    background:var(--bg); color:var(--fg);
+    padding-bottom:env(safe-area-inset-bottom);
+    transition:background .2s,color .2s;
+  }
+  button{ font-family:inherit; cursor:pointer; }
+  input,select,textarea{ font-family:inherit; }
+
+  /* ---------- Lock screen ---------- */
+  #lock{ position:fixed; inset:0; z-index:50; background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+  #lock .logo{ width:76px; height:76px; border-radius:22px; background:var(--primary);
+    display:grid; place-items:center; color:#fff; font-size:34px; margin-bottom:18px; box-shadow:var(--shadow); }
+  #lock h1{ font-size:22px; margin:0 0 4px; }
+  #lock p{ color:var(--muted); margin:0 0 22px; font-size:14px; }
+  .pin{ display:flex; gap:10px; width:100%; max-width:300px; }
+  .pin input{ flex:1; text-align:center; font-size:22px; letter-spacing:4px;
+    padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); color:var(--fg); }
+  .lockbtn{ margin-top:14px; width:100%; max-width:300px; padding:14px;
+    border:none; border-radius:12px; background:var(--primary); color:var(--primary-ink); font-size:16px; font-weight:600; }
+  .lockhint{ margin-top:14px; font-size:12px; color:var(--muted); text-align:center; max-width:300px; }
+
+  /* ---------- Header ---------- */
+  header{ position:sticky; top:0; z-index:20; background:var(--bg2);
+    border-bottom:1px solid var(--line); padding:10px 14px;
+    padding-top:calc(10px + env(safe-area-inset-top));
+    display:flex; align-items:center; gap:8px; }
+  header .title{ font-weight:700; font-size:18px; margin-right:auto; }
+  .iconbtn{ width:40px; height:40px; border-radius:11px; border:1px solid var(--line);
+    background:var(--bg); color:var(--fg); font-size:17px; display:grid; place-items:center; }
+  .iconbtn:disabled{ opacity:.35; }
+  .iconbtn.primary{ background:var(--primary); color:var(--primary-ink); border-color:transparent; }
+
+  main{ padding:14px; max-width:720px; margin:0 auto; }
+
+  /* ---------- Summary strip ---------- */
+  .summary{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .stat{ border:none; border-radius:20px; padding:14px; box-shadow:var(--shadow); color:#1f2430; }
+  .stat .k{ font-size:12px; color:rgba(31,36,48,.6); }
+  .stat .v{ font-size:24px; font-weight:800; margin-top:2px; }
+  .stat:nth-child(1){ background:#d7ebe4; }
+  .stat:nth-child(2){ background:#fdeec9; }
+  .stat:nth-child(3){ background:#e7ddf6; }
+
+  /* ---------- App cards ---------- */
+  /* toolbar: sort + size */
+  .toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .tbsel{ flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:11px;
+    background:var(--bg2); color:var(--fg); font-size:13px; }
+  .sizes{ display:flex; gap:3px; background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:3px; }
+  .sizes button{ width:34px; height:30px; border:none; border-radius:8px; background:transparent; color:var(--muted); font-size:13px; font-weight:700; }
+  .sizes button.on{ background:var(--primary); color:var(--primary-ink); }
+
+  .grid{ display:grid; gap:12px; }
+  .grid.sz-s{ grid-template-columns:1fr 1fr; gap:10px; }
+  .grid.sz-m{ grid-template-columns:1fr 1fr; }
+  .grid.sz-l{ grid-template-columns:1fr; }
+  .grid.sz-s .card{ padding:11px; }
+  .grid.sz-s .card h3{ font-size:14px; }
+  .grid.sz-s .card .desc{ display:none; }
+  .grid.sz-s .card .users b{ font-size:15px; }
+  .grid.sz-l .card{ padding:20px; }
+  .grid.sz-l .card h3{ font-size:19px; }
+  .grid.sz-l .card .users b{ font-size:19px; }
+  .card{ border:none; border-radius:20px; padding:16px; box-shadow:var(--shadow);
+    position:relative; overflow:hidden; color:#1f2430; }
+  .card h3{ margin:0 0 4px; font-size:16px; font-weight:700; }
+  .card .desc{ font-size:12.5px; color:rgba(31,36,48,.6); min-height:16px; }
+  .card .meta{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  /* soft pastel palette (cycled per app) */
+  .card.c0{ background:#d7ebe4; }
+  .card.c1{ background:#fce1ea; }
+  .card.c2{ background:#fdeec9; }
+  .card.c3{ background:#e7ddf6; }
+  .card.c4{ background:#d9e8f6; }
+  .card.c5{ background:#fde3d4; }
+  .card.c6{ background:#e2efd9; }
+  .card.c7{ background:#f7dfe9; }
+  .chip.soft{ background:rgba(255,255,255,.75); color:#1f2430; }
+  .card .chip.g{ background:rgba(255,255,255,.82); color:#15803d; }
+  .card .chip.w{ background:rgba(255,255,255,.82); color:#b45309; }
+  .card .chip.r{ background:rgba(255,255,255,.82); color:#b91c1c; }
+  .card .chip.n{ background:rgba(255,255,255,.82); color:#64748b; }
+  .chip{ font-size:11px; padding:3px 9px; border-radius:999px; background:var(--chip); color:var(--chip-ink); font-weight:600; }
+  .chip.g{ background:#dcfce7; color:#15803d; } .chip.w{ background:#fef3c7; color:#b45309; }
+  .chip.r{ background:#fee2e2; color:#b91c1c; } .chip.n{ background:var(--line); color:var(--muted); }
+  [data-mode="dark"] .chip.g{ background:#0c2e1c; color:#6ee7b7; }
+  [data-mode="dark"] .chip.w{ background:#3a2a0c; color:#fcd34d; }
+  [data-mode="dark"] .chip.r{ background:#3a1114; color:#fca5a5; }
+  .card .foot{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+  .card .users{ font-size:13px; color:rgba(31,36,48,.7); } .card .users b{ font-size:17px; color:#1f2430; }
+  .trend{ font-size:12px; font-weight:700; margin-left:5px; }
+  .trend.up{ color:#15803d; } .trend.down{ color:#b91c1c; } .trend.flat{ color:rgba(31,36,48,.4); }
+  .goarrow{ width:34px; height:34px; border-radius:50%; background:#fff; display:grid; place-items:center;
+    font-size:15px; color:#1f2430; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+
+  .empty{ text-align:center; color:var(--muted); padding:50px 20px; }
+  .empty .big{ font-size:44px; margin-bottom:8px; }
+
+  /* ---------- Sheet / modal ---------- */
+  .sheet{ position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.45);
+    display:flex; align-items:flex-end; justify-content:center; }
+  .sheet .panel{ background:var(--bg2); width:100%; max-width:720px; max-height:92vh; overflow:auto;
+    border-radius:20px 20px 0 0; padding:16px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
+  .sheet .grab{ width:40px; height:4px; border-radius:99px; background:var(--line); margin:0 auto 12px; }
+  .sheet h2{ margin:2px 0 14px; font-size:19px; }
+  .row{ margin-bottom:12px; }
+  .row label{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px; }
+  .row input,.row select,.row textarea{ width:100%; padding:11px 12px; border:1px solid var(--line);
+    border-radius:11px; background:var(--bg); color:var(--fg); font-size:15px; }
+  .row textarea{ min-height:70px; resize:vertical; }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn{ width:100%; padding:13px; border:none; border-radius:12px; font-size:15px; font-weight:600;
+    background:var(--primary); color:var(--primary-ink); }
+  .btn.ghost{ background:var(--bg); color:var(--fg); border:1px solid var(--line); }
+  .btn.danger{ background:var(--bad); color:#fff; }
+  .btnrow{ display:flex; gap:10px; margin-top:6px; }
+
+  /* Detail specifics */
+  .section{ border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px; background:var(--bg); }
+  .section h4{ margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .kv{ display:flex; justify-content:space-between; gap:10px; padding:6px 0; font-size:14px; border-bottom:1px dashed var(--line); }
+  .kv:last-child{ border-bottom:none; }
+  .kv .k{ color:var(--muted); } .kv .v{ text-align:right; word-break:break-word; }
+  .kv .v a{ color:var(--primary); }
+  .reveal{ background:none; border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-size:12px; color:var(--fg); }
+  .counter{ display:flex; align-items:center; gap:10px; }
+  .counter button{ width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--bg2); color:var(--fg); font-size:22px; }
+  .counter .num{ font-size:26px; font-weight:700; min-width:70px; text-align:center; }
+  .counter input{ width:64px; text-align:center; padding:9px; border:1px solid var(--line); border-radius:10px; background:var(--bg2); color:var(--fg); }
+  .filelist .f{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; background:var(--bg2); }
+  .filelist .f .nm{ font-size:14px; }
+  .mini{ font-size:12px; padding:6px 10px; border-radius:9px; border:1px solid var(--line); background:var(--bg2); color:var(--fg); }
+
+  .seg{ display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button{ padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--bg); color:var(--fg); font-size:13px; }
+  .seg button.on{ background:var(--primary); color:var(--primary-ink); border-color:transparent; }
+
+  .swatch{ width:34px; height:34px; border-radius:50%; border:2px solid transparent; }
+  .swatch.on{ border-color:var(--fg); }
+
+  /* toast */
+  #toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:var(--fg); color:var(--bg); padding:11px 18px; border-radius:12px; font-size:14px;
+    opacity:0; pointer-events:none; transition:.25s; z-index:60; max-width:90%; text-align:center; }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .hidden{ display:none !important; }
+  .warnbox{ font-size:12px; color:var(--warn); background:var(--chip); border-radius:10px; padding:8px 10px; margin-top:8px; }
+</style>
+</head>
+<body data-theme="ocean" data-mode="light" data-font="lato">
+
+<!-- LOCK SCREEN -->
+<div id="lock">
+  <div class="logo">▦</div>
+  <h1 id="lockTitle">Apps Manager</h1>
+  <p id="lockSub">Enter your password</p>
+  <div class="pin">
+    <input id="pw" type="password" inputmode="numeric" maxlength="12" autocomplete="off" />
+  </div>
+  <button class="lockbtn" id="unlock">Unlock</button>
+  <div class="lockhint" id="lockHint"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header>
+    <span class="title">Apps Manager</span>
+    <button class="iconbtn" id="undoBtn" title="Undo" disabled>↶</button>
+    <button class="iconbtn" id="redoBtn" title="Redo" disabled>↷</button>
+    <button class="iconbtn" id="shareAll" title="Share all">⇪</button>
+    <button class="iconbtn" id="settingsBtn" title="Settings">⚙</button>
+    <button class="iconbtn primary" id="addBtn" title="Add app">＋</button>
+  </header>
+  <main>
+    <div class="summary">
+      <div class="stat"><div class="k">Apps</div><div class="v" id="sApps">0</div></div>
+      <div class="stat"><div class="k">Total users</div><div class="v" id="sUsers">0</div></div>
+      <div class="stat"><div class="k">Revenue</div><div class="v" id="sRev">0</div></div>
+    </div>
+    <div class="toolbar hidden" id="toolbar">
+      <select id="sortSel" class="tbsel">
+        <option value="az">Sort: A → Z</option>
+        <option value="za">Sort: Z → A</option>
+        <option value="users">Sort: Users (high→low)</option>
+        <option value="status">Sort: Status</option>
+      </select>
+      <div class="sizes" id="sizes">
+        <button data-sz="s">S</button>
+        <button data-sz="m">M</button>
+        <button data-sz="l">L</button>
+      </div>
+    </div>
+    <div class="grid sz-m" id="grid"></div>
+    <div class="empty hidden" id="empty">
+      <div class="big">▦</div>
+      No apps yet.<br>Tap ＋ to add your first one.
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* ============================================================
+   Apps Manager — single-file PWA
+   Local-first (localStorage). Optional Firebase sync (Settings).
+   ============================================================ */
+
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+const money = n => (Number(n)||0).toLocaleString();
+const todayISO = ()=> new Date().toISOString().slice(0,10);
+const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- Crypto (password gate + admin-password encryption) ---------- */
+const enc = new TextEncoder(), dec = new TextDecoder();
+const b64 = {
+  to: buf => btoa(String.fromCharCode(...new Uint8Array(buf))),
+  from: s => Uint8Array.from(atob(s), c=>c.charCodeAt(0))
+};
+async function deriveKey(password, saltBuf){
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:saltBuf, iterations:120000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+async function encText(key, text){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(text));
+  return b64.to(iv)+':'+b64.to(ct);
+}
+async function decText(key, blob){
+  try{
+    const [ivB,ctB] = blob.split(':');
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64.from(ivB)}, key, b64.from(ctB));
+    return dec.decode(pt);
+  }catch(e){ return null; }
+}
+
+/* ---------- State ---------- */
+let DB = null;          // whole data object
+let SKEY = null;        // session crypto key (in memory only)
+let history = [], future = [];
+let suppressRemote = false;
+let remoteDoc = null;
+let remoteState = 'none';   // none | empty | data | error
+let lockMode = 'new';       // new | local | cloud
+
+/* Paste your Firebase config object here for cross-device sync (laptop + phone).
+   Leave as null to keep the app on this device only.
+   Example: const FIREBASE_CONFIG = { apiKey:"...", projectId:"...", ... }; */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBxthIw4nvDm-mGv5YnOXS_PC4-rqGAOcg",
+  authDomain: "app-manager-cbbdb.firebaseapp.com",
+  projectId: "app-manager-cbbdb",
+  storageBucket: "app-manager-cbbdb.firebasestorage.app",
+  messagingSenderId: "1039043117622",
+  appId: "1:1039043117622:web:eb61f9ce7951caaeba0e97"
+};
+function effectiveConfig(){ return FIREBASE_CONFIG || (DB && DB.firebase && DB.firebase.config) || null; }
+
+const LS_KEY = 'appsManagerDB';
+function blankDB(){
+  return {
+    version:1,
+    auth:null,                               // {salt, verifier}
+    settings:{ theme:'ocean', mode:'light', font:'lato', sort:'az', size:'m' },
+    firebase:{ enabled:false, config:null },
+    apps:[],
+    updatedAt: Date.now()
+  };
+}
+function loadLocal(){ const r = localStorage.getItem(LS_KEY); return r? JSON.parse(r): null; }
+function saveLocal(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+
+async function persist(touch=true){
+  if(touch) DB.updatedAt = Date.now();
+  saveLocal();
+  if(DB.firebase.enabled && fb.ready){ try{ await fb.push(DB); }catch(e){ console.warn(e); } }
+}
+
+/* ---------- Undo / redo ---------- */
+function snapshot(){
+  history.push(JSON.stringify({apps:DB.apps, settings:DB.settings}));
+  if(history.length>60) history.shift();
+  future = [];
+  refreshUndo();
+}
+function applySnap(str){
+  const s = JSON.parse(str);
+  DB.apps = s.apps; DB.settings = s.settings;
+}
+function undo(){
+  if(!history.length) return;
+  future.push(JSON.stringify({apps:DB.apps, settings:DB.settings}));
+  applySnap(history.pop());
+  persist(); applyTheme(); render(); refreshUndo(); toast('Undone');
+}
+function redo(){
+  if(!future.length) return;
+  history.push(JSON.stringify({apps:DB.apps, settings:DB.settings}));
+  applySnap(future.pop());
+  persist(); applyTheme(); render(); refreshUndo(); toast('Redone');
+}
+function refreshUndo(){
+  $('#undoBtn').disabled = !history.length;
+  $('#redoBtn').disabled = !future.length;
+}
+
+/* ---------- Theme / font ---------- */
+function applyTheme(){
+  document.body.dataset.theme = DB.settings.theme;
+  document.body.dataset.mode = DB.settings.mode;
+  document.body.dataset.font = DB.settings.font;
+  const tc = getComputedStyle(document.body).getPropertyValue('--bg2').trim();
+  $('meta[name=theme-color]').setAttribute('content', tc || '#0f172a');
+}
+
+/* ---------- Toast ---------- */
+let toastT;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ============================================================
+   Firebase sync (loaded only when enabled)
+   ============================================================ */
+const fb = {
+  ready:false, app:null, db:null, unsub:null, docRef:null, _fs:null,
+  async connect(config){
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const fsMod  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    this._fs = fsMod;
+    this.app = appMod.initializeApp(config, 'appsmgr-'+Date.now());
+    this.db  = fsMod.getFirestore(this.app);
+    this.docRef = fsMod.doc(this.db, 'appsmanager', 'data');
+    this.ready = true;
+  },
+  async getOnce(){
+    const snap = await this._fs.getDoc(this.docRef);
+    return snap.exists()? snap.data() : null;
+  },
+  subscribe(){
+    if(this.unsub || !this.ready) return;
+    this.unsub = this._fs.onSnapshot(this.docRef, async snap=>{
+      if(suppressRemote || !snap.exists() || !SKEY) return;
+      const d = snap.data();
+      if(!(d.updatedAt > (DB.updatedAt||0))) return;
+      const txt = await decText(SKEY, d.blob||'');
+      if(txt===null) return;                 // different password — ignore
+      const s = JSON.parse(txt);
+      DB.settings = s.settings; DB.apps = s.apps; DB.updatedAt = d.updatedAt;
+      saveLocal(); applyTheme(); render(); syncControls(); toast('Synced from cloud');
+    });
+  },
+  // encrypt the whole payload before it leaves this device
+  async push(data){
+    if(!this.ready || !SKEY) return;
+    const blob = await encText(SKEY, JSON.stringify({ settings:data.settings, apps:data.apps }));
+    suppressRemote = true;
+    await this._fs.setDoc(this.docRef, {
+      salt: data.auth.salt, verifier: data.auth.verifier, blob, updatedAt: data.updatedAt
+    });
+    setTimeout(()=>suppressRemote=false, 500);
+  },
+  stop(){ if(this.unsub) this.unsub(); this.unsub=null; }
+};
+// Settings → Turn on sync (user already logged in, SKEY ready)
+async function enableFirebase(config){
+  try{
+    await fb.connect(config);
+    const d = await fb.getOnce();
+    DB.firebase = { enabled:true, config };
+    if(d && (d.updatedAt||0) > (DB.updatedAt||0)){
+      const txt = await decText(SKEY, d.blob||'');
+      if(txt!==null){ const s=JSON.parse(txt); DB.settings=s.settings; DB.apps=s.apps; DB.updatedAt=d.updatedAt; applyTheme(); render(); syncControls(); }
+      remoteState='data';
+    } else { remoteState = d? 'data' : 'empty'; }
+    fb.subscribe();
+    if(remoteState==='empty'){ await fb.push(DB); remoteState='data'; }
+    saveLocal(); toast('Cloud sync on'); return true;
+  }catch(e){ console.error(e); toast('Firebase config error'); return false; }
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const STATUS = {
+  idea:{label:'Idea', cls:'n'}, building:{label:'Building', cls:'w'},
+  live:{label:'Live', cls:'g'}, paused:{label:'Paused', cls:'r'}
+};
+const PRICING = { free:'Free', onetime:'One-time', subscription:'Subscription' };
+
+function appTrend(a){
+  const h = a.userHistory||[];
+  if(h.length<2) return {dir:'flat', txt:'—'};
+  const diff = h[h.length-1].count - h[h.length-2].count;
+  if(diff>0) return {dir:'up', txt:'↑ '+diff};
+  if(diff<0) return {dir:'down', txt:'↓ '+Math.abs(diff)};
+  return {dir:'flat', txt:'—'};
+}
+function appRevenue(a){
+  if(a.pricing==='free') return 0;
+  const paid = Number(a.paidUsers ?? a.users ?? 0);
+  return paid * (Number(a.price)||0);
+}
+
+function sortApps(apps){
+  const s = DB.settings.sort||'az';
+  const l = apps.slice();
+  if(s==='az') l.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if(s==='za') l.sort((a,b)=>(b.name||'').localeCompare(a.name||''));
+  else if(s==='users') l.sort((a,b)=>(Number(b.users)||0)-(Number(a.users)||0));
+  else if(s==='status'){ const o={live:0,building:1,idea:2,paused:3}; l.sort((a,b)=>(o[a.status]??9)-(o[b.status]??9)); }
+  return l;
+}
+function syncControls(){
+  const ss=$('#sortSel'); if(ss) ss.value = DB.settings.sort||'az';
+  $$('#sizes button').forEach(b=>b.classList.toggle('on', b.dataset.sz===(DB.settings.size||'m')));
+}
+function render(){
+  const apps = DB.apps;
+  $('#sApps').textContent = apps.length;
+  $('#sUsers').textContent = money(apps.reduce((s,a)=>s+(Number(a.users)||0),0));
+  $('#sRev').textContent = money(apps.reduce((s,a)=>s+appRevenue(a),0));
+
+  const grid = $('#grid'); grid.innerHTML='';
+  grid.className = 'grid sz-'+(DB.settings.size||'m');
+  $('#empty').classList.toggle('hidden', apps.length>0);
+  $('#toolbar').classList.toggle('hidden', apps.length===0);
+
+  sortApps(apps).forEach((a,i)=>{
+    const st = STATUS[a.status]||STATUS.idea;
+    const tr = appTrend(a);
+    const el = document.createElement('div');
+    el.className='card c'+(i%8);
+    el.innerHTML = `
+      <h3>${escapeHtml(a.name||'Untitled')}</h3>
+      <div class="desc">${escapeHtml(a.desc||'')}</div>
+      <div class="meta">
+        <span class="chip ${st.cls}">${st.label}</span>
+        <span class="chip soft">${PRICING[a.pricing]||'—'}</span>
+        ${a.freeCount? `<span class="chip soft">Free: ${a.freeCount}</span>`:''}
+      </div>
+      <div class="foot">
+        <span class="users">Users <b>${money(a.users||0)}</b><span class="trend ${tr.dir}">${tr.txt}</span></span>
+        <span class="goarrow">↗</span>
+      </div>`;
+    el.onclick = ()=>openDetail(a.id);
+    grid.appendChild(el);
+  });
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- Modal helpers ---------- */
+function openSheet(html){
+  const root = $('#modalRoot');
+  root.innerHTML = `<div class="sheet"><div class="panel"><div class="grab"></div>${html}</div></div>`;
+  const sheet = $('.sheet', root);
+  sheet.addEventListener('click', e=>{ if(e.target===sheet) closeSheet(); });
+}
+function closeSheet(){ $('#modalRoot').innerHTML=''; }
+
+/* ---------- Add / Edit app form ---------- */
+function appForm(a){
+  const e = a||{};
+  return `
+    <h2>${a?'Edit app':'New app'}</h2>
+    <div class="row"><label>App name</label><input id="f_name" value="${escapeHtml(e.name||'')}" placeholder="e.g. CritiDose"></div>
+    <div class="row"><label>Short description</label><input id="f_desc" value="${escapeHtml(e.desc||'')}" placeholder="one line"></div>
+    <div class="two">
+      <div class="row"><label>Live URL</label><input id="f_live" value="${escapeHtml(e.liveUrl||'')}" placeholder="https://"></div>
+      <div class="row"><label>GitHub repo</label><input id="f_repo" value="${escapeHtml(e.repoUrl||'')}" placeholder="https://github.com/"></div>
+    </div>
+    <div class="row"><label>Where it lives / Firebase project</label><input id="f_host" value="${escapeHtml(e.host||'')}" placeholder="e.g. GitHub Pages + Firebase: myproject"></div>
+    <div class="two">
+      <div class="row"><label>Admin email</label><input id="f_mail" value="${escapeHtml(e.adminEmail||'')}" placeholder="admin@..."></div>
+      <div class="row"><label>Admin password</label><input id="f_pass" type="text" placeholder="${e.adminPassEnc?'•••• (unchanged)':'stored encrypted'}"></div>
+    </div>
+    <div class="two">
+      <div class="row"><label>Status</label>
+        <select id="f_status">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${e.status===k?'selected':''}>${v.label}</option>`).join('')}</select>
+      </div>
+      <div class="row"><label>Pricing</label>
+        <select id="f_pricing">${Object.entries(PRICING).map(([k,v])=>`<option value="${k}" ${e.pricing===k?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="two">
+      <div class="row"><label>Users (current)</label><input id="f_users" type="number" value="${e.users??0}"></div>
+      <div class="row"><label>Price per user</label><input id="f_price" type="number" value="${e.price??0}"></div>
+    </div>
+    <div class="two">
+      <div class="row"><label>Paying users</label><input id="f_paid" type="number" value="${e.paidUsers??''}" placeholder="for revenue"></div>
+      <div class="row"><label>Free users added</label><input id="f_free" type="number" value="${e.freeCount??''}" placeholder="optional"></div>
+    </div>
+    <div class="row"><label>Notes</label><textarea id="f_notes" placeholder="anything...">${escapeHtml(e.notes||'')}</textarea></div>
+    <div class="btnrow">
+      <button class="btn ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn" id="saveApp">Save</button>
+    </div>`;
+}
+function openAdd(){ openSheet(appForm(null)); $('#saveApp').onclick=()=>saveApp(null); }
+function openEdit(id){ const a=DB.apps.find(x=>x.id===id); openSheet(appForm(a)); $('#saveApp').onclick=()=>saveApp(id); }
+
+async function saveApp(id){
+  const g = s => $('#'+s).value.trim();
+  const passInput = g('f_pass');
+  snapshot();
+  let app = id ? DB.apps.find(x=>x.id===id) : { id:uid(), userHistory:[], files:[] };
+  if(!id) DB.apps.push(app);
+
+  Object.assign(app, {
+    name:g('f_name'), desc:g('f_desc'), liveUrl:g('f_live'), repoUrl:g('f_repo'),
+    host:g('f_host'), adminEmail:g('f_mail'),
+    status:g('f_status'), pricing:g('f_pricing'),
+    users:Number(g('f_users'))||0, price:Number(g('f_price'))||0,
+    paidUsers: g('f_paid')==='' ? undefined : Number(g('f_paid')),
+    freeCount: g('f_free')==='' ? undefined : Number(g('f_free')),
+    notes:g('f_notes')
+  });
+
+  // user history point
+  app.userHistory = app.userHistory||[];
+  const last = app.userHistory[app.userHistory.length-1];
+  if(!last || last.count!==app.users){
+    app.userHistory.push({date:todayISO(), count:app.users});
+  }
+  // encrypt admin password if a new one typed
+  if(passInput){ app.adminPassEnc = await encText(SKEY, passInput); }
+
+  await persist(); render(); closeSheet(); toast('Saved');
+}
+
+/* ---------- Detail view ---------- */
+function openDetail(id){
+  const a = DB.apps.find(x=>x.id===id); if(!a) return;
+  const st = STATUS[a.status]||STATUS.idea;
+  const link = (u,t)=> u? `<a href="${escapeHtml(u)}" target="_blank" rel="noopener">${t}</a>` : '—';
+  const files = (a.files||[]).map(f=>`
+    <div class="f"><span class="nm">📄 ${escapeHtml(f.name)}</span>
+      <span><button class="mini" onclick="viewFile('${a.id}','${f.id}')">View</button>
+      <button class="mini" onclick="delFile('${a.id}','${f.id}')">✕</button></span></div>`).join('') || '<div style="color:var(--muted);font-size:13px">No rule files yet.</div>';
+
+  openSheet(`
+    <h2>${escapeHtml(a.name||'Untitled')}</h2>
+
+    <div class="section">
+      <h4>Overview</h4>
+      <div class="kv"><span class="k">Status</span><span class="v"><span class="chip ${st.cls}">${st.label}</span></span></div>
+      <div class="kv"><span class="k">Live</span><span class="v">${link(a.liveUrl,'Open')}</span></div>
+      <div class="kv"><span class="k">Repo</span><span class="v">${link(a.repoUrl,'GitHub')}</span></div>
+      <div class="kv"><span class="k">Hosting</span><span class="v">${escapeHtml(a.host||'—')}</span></div>
+      ${a.desc?`<div class="kv"><span class="k">About</span><span class="v">${escapeHtml(a.desc)}</span></div>`:''}
+    </div>
+
+    <div class="section">
+      <h4>Admin</h4>
+      <div class="kv"><span class="k">Email</span><span class="v">${escapeHtml(a.adminEmail||'—')}</span></div>
+      <div class="kv"><span class="k">Password</span><span class="v">
+        ${a.adminPassEnc? `<span id="pwShow">••••••</span> <button class="reveal" onclick="revealPass('${a.id}')">show</button>`:'—'}
+      </span></div>
+    </div>
+
+    <div class="section">
+      <h4>Users</h4>
+      <div class="counter">
+        <button onclick="bump('${a.id}',-1)">−</button>
+        <span class="num" id="uNum">${money(a.users||0)}</span>
+        <button onclick="bump('${a.id}',1)">＋</button>
+        <input id="uStep" type="number" value="1" title="step">
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px">
+        ${(a.userHistory||[]).length>1? 'Last change: '+appTrend(a).txt : 'No history yet'}
+        ${a.freeCount? ' · Free added: '+a.freeCount : ''}
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Business</h4>
+      <div class="kv"><span class="k">Model</span><span class="v">${PRICING[a.pricing]||'—'}</span></div>
+      <div class="kv"><span class="k">Price / user</span><span class="v">${money(a.price||0)}</span></div>
+      <div class="kv"><span class="k">Paying users</span><span class="v">${a.paidUsers??'—'}</span></div>
+      <div class="kv"><span class="k">Revenue</span><span class="v">${money(appRevenue(a))}</span></div>
+    </div>
+
+    <div class="section">
+      <h4>Notes</h4>
+      <div style="font-size:14px;white-space:pre-wrap">${escapeHtml(a.notes||'—')}</div>
+    </div>
+
+    <div class="section">
+      <h4>Rule files</h4>
+      <div class="filelist">${files}</div>
+      <button class="mini" style="margin-top:8px" onclick="addFile('${a.id}')">＋ Add rule file</button>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn ghost" onclick="shareApp('${a.id}')">Share</button>
+      <button class="btn" onclick="openEdit('${a.id}')">Edit</button>
+    </div>
+    <div class="btnrow">
+      <button class="btn danger" onclick="delApp('${a.id}')">Delete app</button>
+    </div>
+  `);
+}
+
+async function revealPass(id){
+  const a = DB.apps.find(x=>x.id===id);
+  const txt = await decText(SKEY, a.adminPassEnc);
+  $('#pwShow').textContent = txt===null? '⚠ wrong key' : txt;
+}
+
+async function bump(id, sign){
+  const a = DB.apps.find(x=>x.id===id);
+  const step = Math.max(1, Number($('#uStep').value)||1);
+  snapshot();
+  a.users = Math.max(0, (Number(a.users)||0) + sign*step);
+  a.userHistory = a.userHistory||[];
+  a.userHistory.push({date:todayISO(), count:a.users});
+  await persist(); 
+  $('#uNum').textContent = money(a.users);
+  render();
+}
+
+function delApp(id){
+  if(!confirm('Delete this app permanently?')) return;
+  snapshot();
+  DB.apps = DB.apps.filter(x=>x.id!==id);
+  persist(); render(); closeSheet(); toast('Deleted');
+}
+
+/* ---------- Rule files ---------- */
+function addFile(appId){
+  openSheet(`
+    <h2>Add rule file</h2>
+    <div class="row"><label>File name</label><input id="ff_name" placeholder="e.g. Refund rules"></div>
+    <div class="row"><label>Content</label><textarea id="ff_body" style="min-height:160px" placeholder="paste the rules / text here"></textarea></div>
+    <div class="btnrow">
+      <button class="btn ghost" onclick="openDetail('${appId}')">Back</button>
+      <button class="btn" onclick="saveFile('${appId}')">Save file</button>
+    </div>`);
+}
+function saveFile(appId){
+  const a = DB.apps.find(x=>x.id===appId);
+  const name = $('#ff_name').value.trim(), body = $('#ff_body').value;
+  if(!name){ toast('Name needed'); return; }
+  snapshot();
+  a.files = a.files||[];
+  a.files.push({id:uid(), name, body, date:todayISO()});
+  persist(); openDetail(appId); toast('File added');
+}
+function viewFile(appId, fid){
+  const a = DB.apps.find(x=>x.id===appId); const f=a.files.find(x=>x.id===fid);
+  openSheet(`
+    <h2>${escapeHtml(f.name)}</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Added ${f.date}</div>
+    <div style="white-space:pre-wrap;font-size:14px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">${escapeHtml(f.body||'')}</div>
+    <div class="btnrow" style="margin-top:12px">
+      <button class="btn ghost" onclick="openDetail('${appId}')">Back</button>
+      <button class="btn" onclick="shareFile('${appId}','${fid}')">Share</button>
+    </div>`);
+}
+function shareFile(appId, fid){
+  const a = DB.apps.find(x=>x.id===appId); const f=a.files.find(x=>x.id===fid);
+  shareText(f.name, f.body||'');
+}
+function delFile(appId, fid){
+  const a = DB.apps.find(x=>x.id===appId);
+  if(!confirm('Delete this file?')) return;
+  snapshot(); a.files = a.files.filter(x=>x.id!==fid);
+  persist(); openDetail(appId);
+}
+
+/* ---------- Share / export ---------- */
+async function shareText(title, text){
+  const payload = title + '\n\n' + text;
+  if(navigator.share){ try{ await navigator.share({title, text:payload}); return; }catch(e){} }
+  // fallback: copy + offer WhatsApp/email
+  try{ await navigator.clipboard.writeText(payload); }catch(e){}
+  openSheet(`
+    <h2>Share</h2>
+    <p style="color:var(--muted);font-size:13px">Copied to clipboard. Or pick:</p>
+    <div class="btnrow"><a class="btn" href="https://wa.me/?text=${encodeURIComponent(payload)}" target="_blank">WhatsApp</a>
+    <a class="btn ghost" href="mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(payload)}">Email</a></div>
+    <div class="btnrow"><button class="btn ghost" onclick="closeSheet()">Close</button></div>`);
+}
+function shareApp(id){
+  const a = DB.apps.find(x=>x.id===id);
+  const t = [
+    `App: ${a.name}`,
+    a.desc?`About: ${a.desc}`:'',
+    `Status: ${(STATUS[a.status]||{}).label}`,
+    a.liveUrl?`Live: ${a.liveUrl}`:'',
+    a.repoUrl?`Repo: ${a.repoUrl}`:'',
+    `Users: ${a.users||0}`,
+    `Model: ${PRICING[a.pricing]||'—'}`,
+    `Revenue: ${money(appRevenue(a))}`
+  ].filter(Boolean).join('\n');
+  shareText(a.name, t);
+}
+function shareAll(){
+  const lines = DB.apps.map(a=>`• ${a.name} — ${(STATUS[a.status]||{}).label}, users ${a.users||0}, rev ${money(appRevenue(a))}`).join('\n');
+  const tot = `TOTAL: ${DB.apps.length} apps · ${money(DB.apps.reduce((s,a)=>s+(+a.users||0),0))} users · ${money(DB.apps.reduce((s,a)=>s+appRevenue(a),0))} revenue`;
+  shareText('My Apps — summary', lines+'\n\n'+tot);
+}
+
+/* ---------- Settings ---------- */
+function openSettings(){
+  const s = DB.settings;
+  const themes = ['ocean','sunset','forest','grape','rose','slate'];
+  const colorFor = { ocean:'#2563eb', sunset:'#ea580c', forest:'#059669', grape:'#7c3aed', rose:'#e11d48', slate:'#0ea5e9' };
+  const fonts = [['lato','Lato'],['lato-bold','Lato Bold'],['roboto','Roboto'],['poppins','Poppins'],['poppins-bold','Poppins Bold'],['serif','Serif']];
+  openSheet(`
+    <h2>Settings</h2>
+
+    <div class="section">
+      <h4>Theme colour</h4>
+      <div class="seg" style="gap:12px">
+        ${themes.map(t=>`<button class="swatch ${s.theme===t?'on':''}" style="background:${colorFor[t]}" onclick="setTheme('${t}')"></button>`).join('')}
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Mode</h4>
+      <div class="seg">
+        <button class="${s.mode==='light'?'on':''}" onclick="setMode('light')">☀ Light</button>
+        <button class="${s.mode==='dark'?'on':''}" onclick="setMode('dark')">🌙 Night</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Font</h4>
+      <div class="seg">
+        ${fonts.map(([k,l])=>`<button class="${s.font===k?'on':''}" onclick="setFont('${k}')">${l}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Cloud sync (Firebase)</h4>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        ${DB.firebase.enabled? '✅ On — syncing across devices.' : 'Off — data stays on this device only.'}
+      </div>
+      <div class="row"><label>Paste your Firebase config (JSON)</label>
+        <textarea id="fbcfg" placeholder='{ "apiKey":"...", "projectId":"...", ... }'>${DB.firebase.config? JSON.stringify(DB.firebase.config,null,0):''}</textarea></div>
+      <div class="btnrow">
+        <button class="btn" onclick="saveFirebase()">${DB.firebase.enabled?'Reconnect':'Turn on sync'}</button>
+        ${DB.firebase.enabled? `<button class="btn ghost" onclick="disableFirebase()">Turn off</button>`:''}
+      </div>
+      <div class="warnbox">Everything is encrypted on this device with your password before it reaches Firebase — the cloud only ever holds unreadable data.</div>
+    </div>
+
+    <div class="section">
+      <h4>Backup</h4>
+      <div class="btnrow">
+        <button class="btn ghost" onclick="exportBackup()">Export file</button>
+        <button class="btn ghost" onclick="$('#impFile').click()">Import file</button>
+      </div>
+      <input id="impFile" type="file" accept="application/json" class="hidden" onchange="importBackup(event)">
+    </div>
+
+    <div class="section">
+      <h4>Security</h4>
+      <button class="btn ghost" onclick="changePw()">Change password</button>
+    </div>
+
+    <div class="btnrow"><button class="btn ghost" onclick="closeSheet()">Close</button></div>
+  `);
+}
+function setTheme(t){ snapshot(); DB.settings.theme=t; applyTheme(); persist(); openSettings(); }
+function setMode(m){ snapshot(); DB.settings.mode=m; applyTheme(); persist(); openSettings(); }
+function setFont(f){ snapshot(); DB.settings.font=f; applyTheme(); persist(); openSettings(); }
+
+async function saveFirebase(){
+  let cfg;
+  try{ cfg = JSON.parse($('#fbcfg').value); }
+  catch(e){ toast('Invalid JSON'); return; }
+  const ok = await enableFirebase(cfg);
+  if(ok) openSettings();
+}
+function disableFirebase(){
+  fb.stop(); DB.firebase={enabled:false, config:DB.firebase.config}; persist(); openSettings(); toast('Sync off');
+}
+
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(DB)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='apps-manager-backup-'+todayISO()+'.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+function importBackup(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const data = JSON.parse(r.result);
+      if(!data.apps) throw 0;
+      snapshot();
+      DB.apps = data.apps; DB.settings = data.settings||DB.settings;
+      applyTheme(); persist(); render(); closeSheet(); toast('Imported');
+    }catch(e){ toast('Bad file'); }
+  };
+  r.readAsText(f);
+}
+
+async function changePw(){
+  const np = prompt('New password (4–12 chars):');
+  if(!np || np.length<4){ toast('Too short'); return; }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(np, salt);
+  // re-encrypt all admin passwords with new key
+  for(const a of DB.apps){
+    if(a.adminPassEnc){
+      const plain = await decText(SKEY, a.adminPassEnc);
+      if(plain!==null) a.adminPassEnc = await encText(key, plain);
+    }
+  }
+  SKEY = key;
+  DB.auth = { salt:b64.to(salt), verifier: await encText(key,'ok') };
+  await persist(); toast('Password changed'); closeSheet();
+}
+
+/* ============================================================
+   Lock screen flow
+   ============================================================ */
+async function boot(){
+  DB = loadLocal() || blankDB();
+  applyTheme();
+  const cfg = FIREBASE_CONFIG || (DB.firebase && DB.firebase.config) || null;
+  if(cfg){
+    try{
+      await fb.connect(cfg);
+      const d = await fb.getOnce();
+      if(d){ remoteDoc = d; remoteState = 'data'; } else { remoteState = 'empty'; }
+    }catch(e){ console.warn('firebase boot', e); remoteState = 'error'; }
+  }
+  if(remoteState==='data'){
+    // an account already lives in the cloud — log in with that password
+    lockMode = 'cloud';
+    $('#lockTitle').textContent = 'Apps Manager';
+    $('#lockSub').textContent = 'Enter your password';
+    $('#lockHint').textContent = 'Cloud sync is on — use the password set on your other device.';
+    $('#unlock').textContent = 'Unlock';
+  } else if(DB.auth){
+    lockMode = 'local';
+    $('#lockSub').textContent = 'Enter your password';
+    $('#lockHint').textContent = '';
+    $('#unlock').textContent = 'Unlock';
+  } else {
+    lockMode = 'new';
+    $('#lockTitle').textContent = 'Welcome';
+    $('#lockSub').textContent = 'Set a password (4–12 chars)';
+    $('#lockHint').textContent = 'This password locks the app and encrypts everything saved. Remember it — it cannot be recovered.';
+    $('#unlock').textContent = 'Create';
+  }
+}
+async function doUnlock(){
+  const pw = $('#pw').value;
+  if(!pw || pw.length<4){ toast('Min 4 characters'); return; }
+
+  if(lockMode==='cloud'){
+    const key = await deriveKey(pw, b64.from(remoteDoc.salt));
+    if(await decText(key, remoteDoc.verifier) !== 'ok'){ toast('Wrong password'); $('#pw').value=''; return; }
+    SKEY = key;
+    const s = JSON.parse(await decText(key, remoteDoc.blob));
+    DB = {
+      version:1,
+      auth:{ salt:remoteDoc.salt, verifier:remoteDoc.verifier },
+      settings: s.settings || blankDB().settings,
+      firebase:{ enabled:true, config: FIREBASE_CONFIG || (DB.firebase&&DB.firebase.config) || null },
+      apps: s.apps || [],
+      updatedAt: remoteDoc.updatedAt
+    };
+    saveLocal(); applyTheme(); enterApp(); return;
+  }
+
+  if(lockMode==='new'){
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    SKEY = await deriveKey(pw, salt);
+    DB.auth = { salt:b64.to(salt), verifier: await encText(SKEY,'ok') };
+    saveLocal(); enterApp(); return;
+  }
+
+  // local
+  const key = await deriveKey(pw, b64.from(DB.auth.salt));
+  if(await decText(key, DB.auth.verifier)==='ok'){ SKEY = key; enterApp(); }
+  else { toast('Wrong password'); $('#pw').value=''; }
+}
+async function enterApp(){
+  $('#lock').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  render(); refreshUndo(); syncControls();
+  const cfg = effectiveConfig();
+  if(!cfg) return;
+  if(remoteState==='error'){ DB.firebase.enabled=false; toast('Cloud not reachable — working offline'); return; }
+  try{
+    if(!fb.ready) await fb.connect(cfg);
+    DB.firebase.enabled = true;
+    fb.subscribe();
+    if(remoteState==='empty'){ await fb.push(DB); remoteState='data'; }   // seed cloud first time
+  }catch(e){ console.warn('firebase enter', e); }
+}
+
+/* ---------- wire up ---------- */
+$('#unlock').onclick = doUnlock;
+$('#pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doUnlock(); });
+$('#addBtn').onclick = openAdd;
+$('#settingsBtn').onclick = openSettings;
+$('#shareAll').onclick = shareAll;
+$('#undoBtn').onclick = undo;
+$('#redoBtn').onclick = redo;
+$('#sortSel').onchange = e=>{ DB.settings.sort = e.target.value; persist(); render(); };
+$$('#sizes button').forEach(b=> b.onclick = ()=>{ DB.settings.size = b.dataset.sz; persist(); render(); syncControls(); });
+
+// expose for inline onclick handlers
+Object.assign(window, {closeSheet,openDetail,openEdit,saveApp,bump,delApp,revealPass,
+  addFile,saveFile,viewFile,delFile,shareApp,shareText,shareFile,setTheme,setMode,setFont,
+  saveFirebase,disableFirebase,exportBackup,importBackup,changePw,openSettings});
+
+boot();
+
+/* ---------- service worker ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
