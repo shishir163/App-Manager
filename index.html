@@ -1184,9 +1184,26 @@ Object.assign(window, {closeSheet,openDetail,openEdit,saveApp,bump,delApp,reveal
 
 boot();
 
-/* ---------- service worker ---------- */
+/* ---------- service worker (auto-update) ---------- */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(reloaded) return; reloaded=true; location.reload();
+  });
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update();
+      reg.addEventListener('updatefound', ()=>{
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', ()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            nw.postMessage('skipWaiting');  // activate the new version right away
+          }
+        });
+      });
+    }).catch(()=>{});
+  });
 }
 </script>
 </body>
